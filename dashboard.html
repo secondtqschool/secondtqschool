@@ -1,0 +1,404 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>لوحة المتابعة — المتوسطة الثانية لتحفيظ القرآن</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .stats-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  @media (max-width:700px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-card{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:15px 17px; box-shadow:var(--shadow); }
+  .stat-card .value{ font-size:24px; font-weight:800; color:var(--forest-900); }
+  .stat-card .label{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  .filters-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .filters-row input, .filters-row select{
+    font-family:inherit; font-size:13px; padding:10px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--paper);
+  }
+  .filters-row input{ flex:1; min-width:180px; }
+
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; font-size:11.5px; color:var(--ink-soft); }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.g{ background:var(--green); } .dot.y{ background:var(--yellow); }
+  .dot.o{ background:var(--orange); } .dot.r{ background:var(--red); }
+
+  .empty-state{
+    text-align:center; padding:44px 20px; color:var(--ink-soft);
+    background: repeating-linear-gradient(var(--paper), var(--paper) 27px, #EEF6F3 28px);
+    border:1px dashed var(--line); border-radius:14px;
+  }
+  .empty-state .big{ font-size:15px; font-weight:800; color:var(--forest-900); margin-bottom:6px; }
+  .loading{ text-align:center; padding:40px; color:var(--ink-soft); font-size:13px; }
+
+  .student-list{ display:flex; flex-direction:column; gap:10px; }
+  .student-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:12px;
+    border-right: 6px solid var(--status-color, var(--green));
+    padding:15px 17px; box-shadow:var(--shadow);
+  }
+  .student-card-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; cursor:pointer; }
+  .student-name{ font-size:14.5px; font-weight:800; color:var(--forest-900); }
+  .student-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .status-badge{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; padding:5px 11px; border-radius:999px; white-space:nowrap; }
+  .status-badge.g{ background:var(--green-bg); color:var(--green); }
+  .status-badge.y{ background:var(--yellow-bg); color:var(--yellow); }
+  .status-badge.o{ background:var(--orange-bg); color:var(--orange); }
+  .status-badge.r{ background:var(--red-bg); color:var(--red); }
+
+  .counts-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .count-pill{ font-size:11.5px; background:#EFF6F3; border:1px solid var(--line); padding:4px 10px; border-radius:999px; color:var(--ink-soft); }
+  .count-pill b{ color:var(--ink); }
+
+  .details-panel{ display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .details-panel.open{ display:block; }
+  .history-item{ font-size:12px; padding:8px 0; border-bottom:1px solid #EEF3F1; }
+  .history-item:last-child{ border-bottom:none; }
+  .history-item .h-top{ display:flex; justify-content:space-between; align-items:center; font-weight:700; }
+  .history-item .h-actions{ display:flex; align-items:center; gap:8px; font-weight:400; }
+  .history-item .h-reason{ color:var(--ink-soft); margin-top:2px; }
+  .history-item a{ color:var(--forest-500); font-weight:700; }
+  .delete-btn{
+    font-family:inherit; font-size:10.5px; color:var(--red); background:none;
+    border:1px solid var(--red-bg); padding:3px 9px; border-radius:999px; cursor:pointer;
+  }
+  .delete-btn:hover{ background:var(--red-bg); }
+
+  .toggle-caret{ font-size:11px; color:var(--ink-soft); margin-inline-start:6px; }
+  .section-title{ font-size:13px; font-weight:800; color:var(--forest-900); margin:24px 0 10px; }
+
+  .class-bars{ display:flex; flex-direction:column; gap:8px; }
+  .class-bar-row{ display:flex; align-items:center; gap:10px; font-size:12.5px; }
+  .class-bar-label{ width:130px; flex-shrink:0; color:var(--ink-soft); }
+  .class-bar-track{ flex:1; background:#EEF3F1; border-radius:6px; height:10px; overflow:hidden; }
+  .class-bar-fill{ height:100%; background:var(--gold); border-radius:6px; }
+  .class-bar-count{ width:22px; text-align:left; font-weight:700; }
+
+  .danger-zone{ margin-top:26px; text-align:center; }
+  .danger-link{ font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer; text-decoration:underline; font-family:inherit; }
+  .confirm-box{ display:none; margin-top:10px; background:var(--red-bg); border:1px solid #F1CFC6; border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--red); }
+  .confirm-box.show{ display:block; }
+  .confirm-box .actions{ display:flex; gap:8px; justify-content:center; margin-top:8px; }
+  .confirm-box button{ font-family:inherit; font-size:12px; font-weight:700; padding:7px 15px; border-radius:8px; border:none; cursor:pointer; }
+  .confirm-yes{ background:var(--red); color:#fff; }
+  .confirm-no{ background:#fff; border:1px solid var(--line) !important; color:var(--ink); }
+
+  .gate{ max-width:360px; margin: 60px auto; text-align:center; }
+  .gate .field{ text-align:right; }
+  .gate-msg{ font-size:12.5px; color:var(--red); margin-top:10px; display:none; }
+  .gate-msg.show{ display:block; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="letterhead">
+    <div class="letterhead-row">
+      <div class="logo-slot">
+        <img src="moe-logo.png" alt="شعار وزارة التعليم" onerror="this.style.display='none'; this.parentElement.classList.add('logo-missing');" />
+        <span class="logo-fallback">شعار الوزارة</span>
+      </div>
+      <div class="letterhead-text">
+        <div class="kicker">المملكة العربية السعودية · وزارة التعليم</div>
+        <h1>المتوسطة الثانية لتحفيظ القرآن</h1>
+        <p>لوحة متابعة الموجهة الطلابية — خاص، غير مخصص لأولياء الأمور</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card gate" id="gateCard">
+    <p class="card-title">الدخول إلى لوحة المتابعة</p>
+    <p class="card-sub">هذه الصفحة مخصصة للموجهة الطلابية فقط. يرجى إدخال رمز الدخول.</p>
+    <div class="field">
+      <label>رمز الدخول</label>
+      <input type="text" id="pinInput" placeholder="••••••" />
+    </div>
+    <button class="btn btn-primary" id="gateBtn" style="width:100%;">دخول</button>
+    <div class="gate-msg" id="gateMsg">رمز الدخول غير صحيح، يرجى المحاولة مرة أخرى.</div>
+  </div>
+
+  <div id="dashboardWrap" class="hidden">
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="value">—</div><div class="label">غياب اليوم</div></div>
+      <div class="stat-card"><div class="value">—</div><div class="label">غياب هذا الأسبوع</div></div>
+      <div class="stat-card"><div class="value">—</div><div class="label">غياب هذا الشهر</div></div>
+      <div class="stat-card"><div class="value">—</div><div class="label">إجمالي الطالبات المسجَّلات</div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="dot g"></span> متابعة عادية (١–٢ يوم)</span>
+      <span class="legend-item"><span class="dot y"></span> تحتاج انتباهًا (٣–٤ أيام)</span>
+      <span class="legend-item"><span class="dot o"></span> تحتاج متابعة من الموجهة (٥–٩ أيام)</span>
+      <span class="legend-item"><span class="dot r"></span> تحتاج إجراء عاجل (١٠ أيام فأكثر)</span>
+    </div>
+
+    <div class="filters-row">
+      <input type="text" id="searchInput" placeholder="بحث باسم الطالبة..." />
+      <select id="gradeFilter">
+        <option value="">كل الصفوف</option>
+        <option>الأول متوسط</option>
+        <option>الثاني متوسط</option>
+        <option>الثالث متوسط</option>
+      </select>
+      <select id="statusFilter">
+        <option value="">كل الحالات</option>
+        <option value="g">🟢 عادية</option>
+        <option value="y">🟡 تحتاج انتباهًا</option>
+        <option value="o">🟠 تحتاج متابعة</option>
+        <option value="r">🔴 عاجلة</option>
+      </select>
+      <button class="btn btn-ghost" id="refreshBtn">↻ تحديث</button>
+    </div>
+
+    <div id="dashBody"><div class="loading">جارٍ تحميل البيانات...</div></div>
+
+    <p class="section-title">الفصول الأكثر غيابًا</p>
+    <div class="card" style="padding:16px 18px;">
+      <div class="class-bars" id="classBars"><div class="loading" style="padding:10px;">...</div></div>
+    </div>
+
+    <div class="danger-zone">
+      <button class="danger-link" id="resetLink">مسح جميع البيانات المسجَّلة</button>
+      <div class="confirm-box" id="confirmBox">
+        هذا الإجراء سيحذف كل السجلات نهائيًا من مصدر البيانات ولا يمكن التراجع عنه. يرجى التأكيد.
+        <div class="actions">
+          <button class="confirm-yes" id="confirmYes">تأكيد الحذف</button>
+          <button class="confirm-no" id="confirmNo">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="credit-line">تصميم النظام وإعداده: حياة الحربي — الموجهة الطلابية</p>
+
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "PASTE_YOUR_NEW_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+  let ACCESS_KEY = '';
+  let allRecords = [];
+  let refreshInterval = null;
+
+  const gateCard = document.getElementById('gateCard');
+  const dashboardWrap = document.getElementById('dashboardWrap');
+  const pinInput = document.getElementById('pinInput');
+  const gateMsg = document.getElementById('gateMsg');
+
+  document.getElementById('gateBtn').addEventListener('click', tryUnlock);
+  pinInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') tryUnlock(); });
+
+  async function tryUnlock(){
+    const pin = pinInput.value.trim();
+    if(!pin) return;
+    gateMsg.classList.remove('show');
+    const ok = await loadDashboard(pin);
+    if(ok){
+      ACCESS_KEY = pin;
+      gateCard.classList.add('hidden');
+      dashboardWrap.classList.remove('hidden');
+      if(refreshInterval) clearInterval(refreshInterval);
+      refreshInterval = setInterval(() => loadDashboard(ACCESS_KEY), 20000);
+    }else{
+      gateMsg.classList.add('show');
+    }
+  }
+
+  function daysAgo(dateStr){
+    return Math.floor((new Date() - new Date(dateStr)) / 86400000);
+  }
+
+  function statusFor(total){
+    if(total >= 10) return { level:'r', label:'تحتاج إجراء عاجل', color:'var(--red)' };
+    if(total >= 5)  return { level:'o', label:'تحتاج متابعة من الموجهة', color:'var(--orange)' };
+    if(total >= 3)  return { level:'y', label:'تحتاج انتباهًا', color:'var(--yellow)' };
+    return { level:'g', label:'متابعة عادية', color:'var(--green)' };
+  }
+
+  function groupByStudent(records){
+    const map = {};
+    records.forEach(r => {
+      const key = r.studentName + '|' + r.grade + '|' + r.section;
+      if(!map[key]) map[key] = { studentName:r.studentName, grade:r.grade, section:r.section, items:[] };
+      map[key].items.push(r);
+    });
+    return Object.values(map).map(s => {
+      const documented = s.items.filter(i => i.fileUrl);
+      const undocumented = s.items.filter(i => !i.fileUrl);
+      const sorted = [...s.items].sort((a,b) => new Date(b.date) - new Date(a.date));
+      return {
+        ...s,
+        totalAbsences: s.items.length,
+        documentedCount: documented.length,
+        undocumentedCount: undocumented.length,
+        lastDate: sorted[0] ? sorted[0].date : null,
+        history: sorted,
+        status: statusFor(s.items.length)
+      };
+    });
+  }
+
+  function renderStats(records){
+    const today = new Date().toISOString().slice(0,10);
+    const todayCount = records.filter(r => r.date === today).length;
+    const weekCount = records.filter(r => daysAgo(r.date) <= 7 && daysAgo(r.date) >= 0).length;
+    const monthCount = records.filter(r => daysAgo(r.date) <= 30 && daysAgo(r.date) >= 0).length;
+    const studentSet = new Set(records.map(r => r.studentName + '|' + r.grade + '|' + r.section));
+    const cards = document.querySelectorAll('#statsGrid .stat-card .value');
+    cards[0].textContent = todayCount;
+    cards[1].textContent = weekCount;
+    cards[2].textContent = monthCount;
+    cards[3].textContent = studentSet.size;
+  }
+
+  function renderClassBars(records){
+    const counts = {};
+    records.forEach(r => {
+      const key = r.grade + ' - فصل ' + r.section;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,6);
+    const wrap = document.getElementById('classBars');
+    if(entries.length === 0){
+      wrap.innerHTML = '<p style="font-size:12.5px;color:var(--ink-soft);margin:0;">لا توجد بيانات كافية بعد.</p>';
+      return;
+    }
+    const max = Math.max(...entries.map(e => e[1]));
+    wrap.innerHTML = entries.map(([label, count]) => `
+      <div class="class-bar-row">
+        <div class="class-bar-label">${label}</div>
+        <div class="class-bar-track"><div class="class-bar-fill" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+        <div class="class-bar-count">${count}</div>
+      </div>`).join('');
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function renderStudentList(){
+    const search = document.getElementById('searchInput').value.trim();
+    const gradeFilter = document.getElementById('gradeFilter').value;
+    const statusFilterVal = document.getElementById('statusFilter').value;
+    const dashBody = document.getElementById('dashBody');
+
+    if(allRecords.length === 0){
+      dashBody.innerHTML = `<div class="empty-state"><div class="big">لا توجد بيانات غياب مسجلة بعد</div><div>بمجرد أن يبدأ أولياء الأمور بتعبئة النموذج، ستظهر بيانات الطالبات هنا.</div></div>`;
+      return;
+    }
+
+    let students = groupByStudent(allRecords);
+    if(search) students = students.filter(s => s.studentName.includes(search));
+    if(gradeFilter) students = students.filter(s => s.grade === gradeFilter);
+    if(statusFilterVal) students = students.filter(s => s.status.level === statusFilterVal);
+    students.sort((a,b) => b.totalAbsences - a.totalAbsences);
+
+    if(students.length === 0){
+      dashBody.innerHTML = `<div class="empty-state"><div class="big">لا نتائج مطابقة</div><div>يمكن تعديل البحث أو الفلاتر.</div></div>`;
+      return;
+    }
+
+    dashBody.innerHTML = `<div class="student-list">${students.map((s, idx) => `
+      <div class="student-card" style="--status-color:${s.status.color}">
+        <div class="student-card-head" onclick="toggleDetails(${idx})">
+          <div>
+            <div class="student-name">${escapeHtml(s.studentName)}</div>
+            <div class="student-meta">${escapeHtml(s.grade)} — فصل ${escapeHtml(s.section)} ${s.lastDate ? '· آخر غياب: ' + s.lastDate : ''}</div>
+          </div>
+          <div class="status-badge ${s.status.level}">${s.status.label}<span class="toggle-caret">▾</span></div>
+        </div>
+        <div class="counts-row">
+          <span class="count-pill">إجمالي الغياب: <b>${s.totalAbsences}</b></span>
+          <span class="count-pill">موثّق بمرفق: <b>${s.documentedCount}</b></span>
+          <span class="count-pill">بدون مرفق: <b>${s.undocumentedCount}</b></span>
+        </div>
+        <div class="details-panel" id="details-${idx}">
+          ${s.history.map(h => `
+            <div class="history-item">
+              <div class="h-top">
+                <span>${h.date}</span>
+                <span class="h-actions">
+                  ${h.fileUrl ? `<a href="${h.fileUrl}" target="_blank" rel="noopener">عرض المرفق</a>` : ''}
+                  <button class="delete-btn" onclick="deleteRecord('${h.id}')">حذف</button>
+                </span>
+              </div>
+              <div class="h-reason">${escapeHtml(h.reason)}</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  function toggleDetails(idx){
+    const panel = document.getElementById('details-' + idx);
+    if(panel) panel.classList.toggle('open');
+  }
+  window.toggleDetails = toggleDetails;
+
+  async function deleteRecord(id){
+    if(!confirm('هل تريدين حذف هذا التسجيل؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+    try{
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'delete', key: ACCESS_KEY, id })
+      });
+      const result = await res.json();
+      if(result.status === 'ok'){
+        loadDashboard(ACCESS_KEY);
+      }else{
+        alert('تعذّر حذف التسجيل، يرجى المحاولة مرة أخرى.');
+      }
+    }catch(e){
+      alert('تعذّر حذف التسجيل، يرجى التحقق من الاتصال.');
+    }
+  }
+  window.deleteRecord = deleteRecord;
+
+  async function loadDashboard(pin){
+    try{
+      const url = APPS_SCRIPT_URL + '?key=' + encodeURIComponent(pin);
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.status !== 'ok') return false;
+      allRecords = data.records || [];
+      renderStats(allRecords);
+      renderClassBars(allRecords);
+      renderStudentList();
+      return true;
+    }catch(err){
+      return false;
+    }
+  }
+
+  document.getElementById('refreshBtn')?.addEventListener('click', () => loadDashboard(ACCESS_KEY));
+  document.getElementById('searchInput')?.addEventListener('input', renderStudentList);
+  document.getElementById('gradeFilter')?.addEventListener('change', renderStudentList);
+  document.getElementById('statusFilter')?.addEventListener('change', renderStudentList);
+
+  const resetLink = document.getElementById('resetLink');
+  const confirmBox = document.getElementById('confirmBox');
+  resetLink?.addEventListener('click', () => confirmBox.classList.add('show'));
+  document.getElementById('confirmNo')?.addEventListener('click', () => confirmBox.classList.remove('show'));
+  document.getElementById('confirmYes')?.addEventListener('click', async () => {
+    try{
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'reset', key: ACCESS_KEY })
+      });
+      confirmBox.classList.remove('show');
+      setTimeout(() => loadDashboard(ACCESS_KEY), 800);
+    }catch(e){
+      alert('تعذّر حذف البيانات، يرجى المحاولة مرة أخرى.');
+    }
+  });
+</script>
+</body>
+</html>

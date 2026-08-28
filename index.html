@@ -1,0 +1,185 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>تسجيل غياب — المتوسطة الثانية لتحفيظ القرآن</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="shell">
+
+  <div class="letterhead">
+    <div class="letterhead-row">
+      <div class="logo-slot">
+        <img src="moe-logo.png" alt="شعار وزارة التعليم" onerror="this.style.display='none'; this.parentElement.classList.add('logo-missing');" />
+        <span class="logo-fallback">شعار الوزارة</span>
+      </div>
+      <div class="letterhead-text">
+        <div class="kicker">المملكة العربية السعودية · وزارة التعليم</div>
+        <h1>المتوسطة الثانية لتحفيظ القرآن</h1>
+        <p>نظام حصر ومتابعة غياب الطالبات — تسجيل غياب</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="banner">
+    <img src="banner.jpg" alt="إعلان" onerror="this.style.display='none'; this.parentElement.classList.add('banner-missing');" />
+    <div class="banner-fallback">
+      لإضافة إعلان أو صورة تهنئة (مثل العودة للمدارس أو اليوم الوطني)، ارفعي صورة باسم <code>banner.jpg</code> في نفس مجلد الملفات — تظهر هنا تلقائيًا بدون أي تعديل على الكود.
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">تسجيل غياب</p>
+    <p class="card-sub">يُستخدم هذا النموذج من قِبل ولي أمر الطالبة لتسجيل غياب الطالبة. تصل البيانات مباشرة إلى الموجهة الطلابية لمتابعتها.</p>
+
+    <form id="absenceForm">
+      <div class="grid-2">
+        <div class="field">
+          <label>التاريخ <span class="req">*</span></label>
+          <input type="date" id="f-date" required />
+        </div>
+        <div class="field">
+          <label>اسم الطالبة <span class="req">*</span></label>
+          <input type="text" id="f-name" placeholder="الاسم الكامل" required />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>الصف <span class="req">*</span></label>
+          <select id="f-grade" required>
+            <option value="" disabled selected>-- اختيار الصف --</option>
+            <option>الأول متوسط</option>
+            <option>الثاني متوسط</option>
+            <option>الثالث متوسط</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>الفصل <span class="req">*</span></label>
+          <select id="f-section" required disabled>
+            <option value="" disabled selected>-- اختيار الصف أولاً --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>سبب الغياب <span class="req">*</span></label>
+        <input type="text" id="f-reason" placeholder="بيان مختصر لسبب الغياب" required />
+      </div>
+
+      <div class="field">
+        <label>إرفاق مستند داعم (اختياري)</label>
+        <div class="hint">مثل صورة موعد مستشفى أو لقطة شاشة من تطبيق صحتي</div>
+        <input type="file" id="f-file" accept="image/*,.pdf" />
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">تسجيل الغياب</button>
+      <div class="msg" id="formMsg"></div>
+    </form>
+  </div>
+
+  <p class="footer-note">تُستخدم هذه البيانات لأغراض المتابعة المدرسية فقط، وتصل مباشرة إلى الموجهة الطلابية.</p>
+  <p class="credit-line">تصميم النظام وإعداده: حياة الحربي — الموجهة الطلابية</p>
+
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "PASTE_YOUR_NEW_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+
+  const SECTIONS_MAP = {
+    'الأول متوسط': ['١', '٢'],
+    'الثاني متوسط': ['١', '٢'],
+    'الثالث متوسط': ['١', '٢', '٣']
+  };
+  const gradeSelect = document.getElementById('f-grade');
+  const sectionSelect = document.getElementById('f-section');
+  gradeSelect.addEventListener('change', () => {
+    const sections = SECTIONS_MAP[gradeSelect.value] || [];
+    sectionSelect.innerHTML = '<option value="" disabled selected>-- اختيار الفصل --</option>' +
+      sections.map(s => `<option value="${s}">فصل ${s}</option>`).join('');
+    sectionSelect.disabled = false;
+  });
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('تعذّرت قراءة الملف'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const form = document.getElementById('absenceForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const formMsg = document.getElementById('formMsg');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formMsg.className = 'msg';
+
+    const payload = {
+      date: document.getElementById('f-date').value,
+      grade: document.getElementById('f-grade').value,
+      section: document.getElementById('f-section').value.trim(),
+      studentName: document.getElementById('f-name').value.trim(),
+      reason: document.getElementById('f-reason').value.trim(),
+      fileBase64: '', fileName: '', fileMime: ''
+    };
+
+    const fileInput = document.getElementById('f-file');
+    if(fileInput.files && fileInput.files[0]){
+      try{
+        const file = fileInput.files[0];
+        payload.fileBase64 = await fileToBase64(file);
+        payload.fileName = file.name;
+        payload.fileMime = file.type || 'application/octet-stream';
+      }catch(err){
+        formMsg.textContent = 'تعذّرت قراءة الملف المرفق، حاول مرة أخرى أو تابع بدون إرفاق.';
+        formMsg.classList.add('show','err');
+        return;
+      }
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جارٍ الحفظ...';
+
+    try{
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+
+      if(result.status === 'duplicate'){
+        formMsg.textContent = 'هذا الغياب مسجَّل مسبقًا لنفس الطالبة في نفس التاريخ.';
+        formMsg.classList.add('show','err');
+        return;
+      }
+      if(result.status !== 'ok'){
+        formMsg.textContent = 'تعذّر حفظ البيانات. يرجى المحاولة مرة أخرى.';
+        formMsg.classList.add('show','err');
+        return;
+      }
+
+      formMsg.textContent = 'تم تسجيل الغياب بنجاح. شكرًا للتعاون.';
+      formMsg.classList.add('show','ok');
+      form.reset();
+      document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+      sectionSelect.innerHTML = '<option value="" disabled selected>-- اختيار الصف أولاً --</option>';
+      sectionSelect.disabled = true;
+    }catch(err){
+      formMsg.textContent = 'تعذّر إرسال البيانات. يرجى التحقق من الاتصال والمحاولة مرة أخرى.';
+      formMsg.classList.add('show','err');
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'تسجيل الغياب';
+    }
+  });
+</script>
+</body>
+</html>
