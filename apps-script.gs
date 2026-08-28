@@ -5,7 +5,7 @@
  * حتى يعمل التعديل فعليًا على الرابط المنشور (تعديل الكود وحده لا يكفي بدون هذه الخطوة).
  */
 
-const ACCESS_KEY = 'hayat2ndtqschool';
+const ACCESS_KEY = 'hayat2qschool';
 const SHEET_NAME = 'Responses';
 const DRIVE_FOLDER_NAME = 'مرفقات غياب الطالبات - الثانية لتحفيظ القرآن';
 const ALERT_EMAIL = 'tootaa.b.o.j@gmail.com';
